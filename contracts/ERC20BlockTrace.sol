@@ -60,11 +60,13 @@ contract ERC20BlockTrace is IERC20BlockTrace {
     function _mint(address to, uint256 value) internal {
         _add(to, value);
         _totalSupply += value;
+        emit Transfer(address(0), to, value);
     }
 
-    function _burn(address to, uint256 value) internal {
-        _subtract(to, value);
+    function _burn(address from, uint256 value) internal {
+        _subtract(from, value);
         _totalSupply -= value;
+        emit Transfer(from, address(0), value);
     }
 
     // modified erc20 methods
