@@ -1,16 +1,16 @@
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { MintableERC20BlockTrace } from "../typechain-types";
+import { TestERC20BlockTrace } from "../typechain-types";
 
 describe("ERC20BlockTrace", function () {
 
   let account : SignerWithAddress;
-  let token : MintableERC20BlockTrace;
+  let token : TestERC20BlockTrace;
   let baseBlock : number;
 
   beforeEach(async () => {
-    let ERC20 = await ethers.getContractFactory("MintableERC20BlockTrace");
+    let ERC20 = await ethers.getContractFactory("TestERC20BlockTrace");
     let accounts = await ethers.getSigners();
     account = accounts[0];
 
@@ -35,34 +35,6 @@ describe("ERC20BlockTrace", function () {
     expect(balance).to.equal(0);
   })
 
-  it("request after one edit", async function () {
-    await token.mintTo(account.address, 10); //baseBlock + 1
-    await travelBlocks(10);
-    let balance = await token.balanceOfAtBlock(account.address, baseBlock+5);
-
-    expect(balance).to.equal(10);
-  })
-
-  it("request after two edit", async function () {
-    await travelBlocks(9);
-    await token.mintTo(account.address, 10); //baseBlock + 10
-    await travelBlocks(9); 
-    await token.mintTo(account.address, 10); //baseBlock + 20
-    await travelBlocks(9);
-
-    let balance = await token.balanceOf(account.address);
-    expect(balance).to.equal(20);
-
-    balance = await token.balanceOfAtBlock(account.address, baseBlock+5);
-    expect(balance).to.equal(0);
-    
-    balance = await token.balanceOfAtBlock(account.address, baseBlock+19);
-    expect(balance).to.equal(10);
-
-    balance = await token.balanceOfAtBlock(account.address, baseBlock+20);
-    expect(balance).to.equal(20);
-  })
-
   it("request after three edit", async function () {
     await travelBlocks(9);
     await token.mintTo(account.address, 10); //baseBlock + 10
@@ -85,6 +57,38 @@ describe("ERC20BlockTrace", function () {
 
     balance = await token.balanceOfAtBlock(account.address, baseBlock+30);
     expect(balance).to.equal(30);
+  })
+
+  it("request after three edit - multiple edit in same block", async function () {
+
+    await token.writeManualHistory(account.address, [
+      { blockNumber: 0, balance: 0 },
+      { blockNumber: baseBlock+10, balance: 10 },
+      { blockNumber: baseBlock+10, balance: 11 },
+      { blockNumber: baseBlock+20, balance: 21 },
+      { blockNumber: baseBlock+20, balance: 22 },
+      { blockNumber: baseBlock+20, balance: 23 },
+      { blockNumber: baseBlock+30, balance: 33 },
+      { blockNumber: baseBlock+30, balance: 34 },
+      { blockNumber: baseBlock+30, balance: 35 },
+      { blockNumber: baseBlock+30, balance: 36 },
+    ]);
+    await travelBlocks(30);
+  
+    let balance = await token.balanceOf(account.address);
+    expect(balance).to.equal(36);
+
+    balance = await token.balanceOfAtBlock(account.address, baseBlock+5);
+    expect(balance).to.equal(0);
+    
+    balance = await token.balanceOfAtBlock(account.address, baseBlock+15);
+    expect(balance).to.equal(11);
+
+    balance = await token.balanceOfAtBlock(account.address, baseBlock+27);
+    expect(balance).to.equal(23);
+
+    balance = await token.balanceOfAtBlock(account.address, baseBlock+30);
+    expect(balance).to.equal(36);
   })
 
 

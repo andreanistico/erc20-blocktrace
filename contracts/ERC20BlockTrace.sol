@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "./IERC20BlockTrace.sol";
+import "hardhat/console.sol";
 
 contract ERC20BlockTrace is IERC20BlockTrace {
 
@@ -15,7 +16,7 @@ contract ERC20BlockTrace is IERC20BlockTrace {
     uint256 _totalSupply;
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    mapping(address => BlockBalance[]) editBlocks;
+    mapping(address => BlockBalance[]) public editBlocks;
 
     error InsufficientBalance();
     error InsufficientAllowance();
@@ -93,6 +94,10 @@ contract ERC20BlockTrace is IERC20BlockTrace {
         return editBlocks[account][editBlocks[account].length - 1];
     }
 
+    function getBlockEditsLength(address account) public view returns(uint256) {
+        return editBlocks[account].length;
+    }
+
     //every time balance is modified, is modified through these _add and _subtract methods
     function _add(address account, uint256 value) internal { 
         BlockBalance memory lastBlockForAddr = lastBlockForAddress(account);
@@ -164,12 +169,14 @@ contract ERC20BlockTrace is IERC20BlockTrace {
         }
 
         //be sure to be on the last update of that block
-        while(currentIndex < blockList.length - 1) {
+        while(currentIndex < blockList.length) {
             currentIndex++;
             BlockBalance memory next = blockList[currentIndex];
             if(next.blockNumber > currentBlock.blockNumber) break; //found
             //else we're in the same block but there is an updated value
             currentBlock = next;
+            console.log(currentBlock.blockNumber);
+            console.log(currentBlock.balance);
         }
         return currentBlock;
     }
