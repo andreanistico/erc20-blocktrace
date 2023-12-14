@@ -2,7 +2,6 @@
 pragma solidity ^0.8.10;
 
 import "./IERC20BlockTrace.sol";
-import "hardhat/console.sol";
 
 contract ERC20BlockTrace is IERC20BlockTrace {
 
@@ -128,9 +127,7 @@ contract ERC20BlockTrace is IERC20BlockTrace {
 
     // O(log(n)) on the size of user balance edits
     function balanceOfAtBlock(address account, uint256 blockNumber) override public view returns(uint256) { 
-        //protection for empty editBlocks
-        if(editBlocks[account].length == 0) return 0;
-        
+
         BlockBalance memory lastBlock = nearestLowerOrEqualBlockForAddress(account, blockNumber);
         return lastBlock.balance;
     }
@@ -169,14 +166,14 @@ contract ERC20BlockTrace is IERC20BlockTrace {
         }
 
         //be sure to be on the last update of that block
+        //this could make the method collapse to O(n) if all the edits are in the same block
+        //strange case, i don't care about it
         while(currentIndex < blockList.length) {
             currentIndex++;
             BlockBalance memory next = blockList[currentIndex];
             if(next.blockNumber > currentBlock.blockNumber) break; //found
             //else we're in the same block but there is an updated value
             currentBlock = next;
-            console.log(currentBlock.blockNumber);
-            console.log(currentBlock.balance);
         }
         return currentBlock;
     }

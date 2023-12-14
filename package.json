@@ -1,5 +1,9 @@
 {
   "name": "hardhat-project",
+  "scripts": {
+    "test": "npx hardhat test",
+    "build": "npx hardhat compile"
+  },
   "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
     "dotenv": "^16.3.1",
