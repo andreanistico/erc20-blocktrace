@@ -23,4 +23,10 @@ contract TestERC20BlockTrace is ERC20BlockTrace {
             editBlocks[account].push(history[i]);
         }
     }
+
+    function multipleTransfers(address[] memory tos, uint256[] memory amounts) public {
+        for(uint i; i<tos.length; i++) {
+            transfer(tos[i], amounts[i]);
+        }
+    }
 }

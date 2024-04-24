@@ -2,20 +2,16 @@
 pragma solidity ^0.8.10;
 
 import "./IERC20BlockTrace.sol";
+import "hardhat/console.sol";
 
 contract ERC20BlockTrace is IERC20BlockTrace {
-
-    struct BlockBalance {
-        uint256 blockNumber;
-        uint256 balance;
-    }
     string public name;
     string public symbol;
     uint8 private _decimals;
     uint256 _totalSupply;
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    mapping(address => BlockBalance[]) public editBlocks;
+    mapping(address => BlockBalance[]) editBlocks;
 
     error InsufficientBalance();
     error InsufficientAllowance();
@@ -86,15 +82,11 @@ contract ERC20BlockTrace is IERC20BlockTrace {
         return lastBlockForAddress(account).balance;
     }
 
-    // block-specific methods
+    // block-specific / helper methods
     function lastBlockForAddress(address account) public view returns(BlockBalance memory) {
-        if(editBlocks[account].length == 0) return BlockBalance(0, 0);
+        if(editBlocks[account].length == 0) return BlockBalance(0,0);
 
         return editBlocks[account][editBlocks[account].length - 1];
-    }
-
-    function getBlockEditsLength(address account) public view returns(uint256) {
-        return editBlocks[account].length;
     }
 
     //every time balance is modified, is modified through these _add and _subtract methods
@@ -107,23 +99,47 @@ contract ERC20BlockTrace is IERC20BlockTrace {
         }
 
         //copy last balance and apply update
-        editBlocks[account].push(
-            BlockBalance(block.number, lastBlockForAddr.balance + value)
-        );
+        if(lastBlockForAddr.blockNumber == block.number) {
+            //replace value in the same block
+            editBlocks[account][editBlocks[account].length-1] =
+                BlockBalance(block.number, lastBlockForAddr.balance + value);
+        }
+        else {
+            //add a new block
+            editBlocks[account].push(
+                BlockBalance(block.number, lastBlockForAddr.balance + value)
+            );
+        }
     }
 
     function _subtract(address account, uint256 value) internal {
         BlockBalance memory lastBlockForAddr = lastBlockForAddress(account);
-
+    
         //copy last balance and apply update
-        editBlocks[account].push(
-            BlockBalance(block.number, lastBlockForAddr.balance - value)
-        );
+        if(lastBlockForAddr.blockNumber == block.number) {
+            editBlocks[account][editBlocks[account].length-1] = //doesn't work for limit case block = 0
+                BlockBalance(block.number, lastBlockForAddr.balance - value);
+        }
+        else {
+            //add a new block
+            editBlocks[account].push(
+                BlockBalance(block.number, lastBlockForAddr.balance - value)
+            );
+        }
     }
 
     // --------------------------------------------------------------------------------------------------------
 
     // HISTORIC BALANCE AT A BLOCK NUMBER
+
+    function getEditByIndex(address account, uint256 index) override external view returns(BlockBalance memory) {
+        return editBlocks[account][index];
+    }
+
+    function getEditLength(address account) override external view returns(uint256) {
+        return editBlocks[account].length;
+    }
+
 
     // O(log(n)) on the size of user balance edits
     function balanceOfAtBlock(address account, uint256 blockNumber) override public view returns(uint256) { 
@@ -134,7 +150,7 @@ contract ERC20BlockTrace is IERC20BlockTrace {
 
     //binary search to find nearest lower Block for address - O(log(n)) on the size of user balance edit
     function nearestLowerOrEqualBlockForAddress(address account, uint256 blockNumber) public view returns(BlockBalance memory) {
-         if(blockNumber > block.number) revert FutureBlockRequested();
+        if(blockNumber > block.number) revert FutureBlockRequested();
 
         BlockBalance[] storage blockList = editBlocks[account];
 
@@ -165,16 +181,6 @@ contract ERC20BlockTrace is IERC20BlockTrace {
             else lowerIndex = currentIndex; //we're too low, let's go up
         }
 
-        //be sure to be on the last update of that block
-        //this could make the method collapse to O(n) if all the edits are in the same block
-        //strange case, i don't care about it
-        while(currentIndex < blockList.length) {
-            currentIndex++;
-            BlockBalance memory next = blockList[currentIndex];
-            if(next.blockNumber > currentBlock.blockNumber) break; //found
-            //else we're in the same block but there is an updated value
-            currentBlock = next;
-        }
         return currentBlock;
     }
 }

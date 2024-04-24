@@ -13,5 +13,13 @@ interface IERC20 {
 }
 
 interface IERC20BlockTrace is IERC20 {
-    function balanceOfAtBlock(address account, uint256 blockNumber) external view returns(uint256);
+
+    struct BlockBalance {
+        uint256 blockNumber;
+        uint256 balance;
+    }
+
+    function balanceOfAtBlock(address account, uint256 blockNumber) external view returns (uint256);
+    function getEditByIndex(address account, uint256 index) external view returns (BlockBalance memory);
+    function getEditLength(address account) external view returns (uint256);
 }
